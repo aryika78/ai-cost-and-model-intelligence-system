@@ -1,4 +1,4 @@
-# MCKH AI Cost & Model Intelligence Engine
+# AI Cost & Model Intelligence Engine
 
 > Find the right AI model for your project. Get real cost ranges — not guesses.
 
@@ -182,16 +182,3 @@ Mckh/
 | Data sources | OpenRouter + HuggingFace + LiteLLM | Free public APIs, real pricing |
 
 ---
-
-## Roadmap
-
-- [ ] Remove hardcoded keyword rules in syncs — let LLM enricher assign all metadata
-- [ ] Confidence tagging on extracted requirements (stated / inferred / assumed)
-- [ ] Per-platform pricing (same model, different cost on OpenAI vs Azure vs Groq)
-- [ ] Dynamic extraction schema (accept any requirement structure, not fixed 13 fields)
-- [ ] Additional data sources (Groq models API, Together, Fireworks)
-- [ ] Deploy to Streamlit Cloud
-
----
-
-*Built by MCKH Technologies*
