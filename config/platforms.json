@@ -1,0 +1,139 @@
+{
+  "platforms": [
+    {
+      "name": "OpenAI",
+      "type": "api",
+      "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini", "o3-mini"],
+      "rate_limits": {"free_tier": "3 RPM", "tier_1": "500 RPM", "tier_5": "10000 RPM"},
+      "reliability": "high",
+      "features": ["function_calling", "vision", "json_mode", "streaming", "batch_api"],
+      "notes": "Industry standard. Batch API gives 50% discount with 24h SLA."
+    },
+    {
+      "name": "Anthropic",
+      "type": "api",
+      "models": ["claude-3.5-sonnet", "claude-3.5-haiku", "claude-3-opus"],
+      "rate_limits": {"tier_1": "50 RPM", "tier_4": "4000 RPM"},
+      "reliability": "high",
+      "features": ["function_calling", "vision", "streaming", "prompt_caching", "batch_api"],
+      "notes": "Prompt caching gives 90% discount on cached tokens. Batch API 50% off."
+    },
+    {
+      "name": "Google Vertex AI / AI Studio",
+      "type": "api",
+      "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+      "rate_limits": {"free_tier": "15 RPM (AI Studio)", "paid": "1000 RPM"},
+      "reliability": "high",
+      "features": ["function_calling", "vision", "grounding", "context_caching", "streaming"],
+      "notes": "Context caching gives 75% discount. Very competitive pricing on Flash models."
+    },
+    {
+      "name": "Groq",
+      "type": "api",
+      "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+      "rate_limits": {"free": "30 RPM, 14400 RPD", "paid": "100+ RPM"},
+      "reliability": "medium-high",
+      "features": ["streaming", "function_calling"],
+      "notes": "Fastest inference. Free tier generous for prototyping. Custom LPU hardware."
+    },
+    {
+      "name": "Together AI",
+      "type": "api",
+      "models": ["llama-3.1-405b", "llama-3.1-70b", "mixtral-8x22b", "qwen-2.5-72b"],
+      "rate_limits": {"default": "600 RPM"},
+      "reliability": "high",
+      "features": ["function_calling", "streaming", "fine_tuning", "dedicated_endpoints"],
+      "notes": "Good for open-source models. Fine-tuning support. Dedicated endpoints available."
+    },
+    {
+      "name": "Fireworks AI",
+      "type": "api",
+      "models": ["llama-3.1-405b", "llama-3.1-70b", "mixtral-8x22b"],
+      "rate_limits": {"default": "600 RPM"},
+      "reliability": "high",
+      "features": ["function_calling", "streaming", "fine_tuning", "on_demand_serving"],
+      "notes": "Fast inference with optimized serving. Good pricing for open-source models."
+    },
+    {
+      "name": "Replicate",
+      "type": "api",
+      "models": ["llama-3.1-405b", "sdxl", "whisper", "various open-source"],
+      "rate_limits": {"default": "varies by model"},
+      "reliability": "medium-high",
+      "features": ["streaming", "webhooks", "custom_models"],
+      "notes": "Pay per second of compute. Good for image/audio models. Easy custom model deployment."
+    },
+    {
+      "name": "AWS Bedrock",
+      "type": "api",
+      "models": ["claude-3.5-sonnet", "llama-3.1-70b", "titan", "mistral-large"],
+      "rate_limits": {"default": "varies, provisioned throughput available"},
+      "reliability": "very_high",
+      "features": ["function_calling", "streaming", "guardrails", "fine_tuning", "vpc_integration"],
+      "notes": "Enterprise-grade. VPC integration. Provisioned throughput for consistent performance."
+    },
+    {
+      "name": "Azure OpenAI",
+      "type": "api",
+      "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+      "rate_limits": {"default": "varies by deployment, PTU available"},
+      "reliability": "very_high",
+      "features": ["function_calling", "vision", "streaming", "content_filtering", "vpc_integration"],
+      "notes": "Enterprise-grade. Same models as OpenAI with Azure compliance. PTU for provisioned throughput."
+    },
+    {
+      "name": "OpenRouter",
+      "type": "api_aggregator",
+      "models": ["routes to 100+ models across providers"],
+      "rate_limits": {"free_tier": "10 RPM", "paid": "200 RPM"},
+      "reliability": "medium-high",
+      "features": ["unified_api", "fallback_routing", "model_comparison"],
+      "notes": "Unified API for many providers. Automatic fallback. Good for testing multiple models."
+    },
+    {
+      "name": "Hugging Face Inference Endpoints",
+      "type": "managed_hosting",
+      "models": ["any HuggingFace model"],
+      "rate_limits": {"default": "depends on instance"},
+      "reliability": "high",
+      "features": ["custom_models", "auto_scaling", "private_endpoints"],
+      "notes": "Deploy any HuggingFace model. Auto-scaling. Pay per hour of compute."
+    },
+    {
+      "name": "RunPod",
+      "type": "gpu_cloud",
+      "models": ["self-hosted any model"],
+      "rate_limits": {"default": "limited by GPU"},
+      "reliability": "medium",
+      "features": ["serverless", "dedicated_gpus", "custom_docker"],
+      "notes": "Cheapest GPU cloud for many configs. Serverless and dedicated options."
+    },
+    {
+      "name": "Lambda Labs",
+      "type": "gpu_cloud",
+      "models": ["self-hosted any model"],
+      "rate_limits": {"default": "limited by GPU"},
+      "reliability": "medium-high",
+      "features": ["dedicated_gpus", "reserved_instances", "clusters"],
+      "notes": "Competitive H100/A100 pricing. Good for training and inference."
+    },
+    {
+      "name": "Vast.ai",
+      "type": "gpu_marketplace",
+      "models": ["self-hosted any model"],
+      "rate_limits": {"default": "limited by GPU"},
+      "reliability": "low-medium",
+      "features": ["marketplace_gpus", "cheapest_option", "spot_instances"],
+      "notes": "Community GPU marketplace. Cheapest but less reliable. Good for experimentation."
+    },
+    {
+      "name": "Ollama (Local)",
+      "type": "local",
+      "models": ["llama3.1", "mistral", "phi-3", "gemma2", "qwen2.5"],
+      "rate_limits": {"default": "limited by hardware"},
+      "reliability": "depends on hardware",
+      "features": ["offline", "private", "free_inference"],
+      "notes": "Free local inference. Good for privacy-sensitive use cases. Requires capable GPU."
+    }
+  ]
+}

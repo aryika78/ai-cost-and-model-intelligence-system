@@ -1,0 +1,116 @@
+{
+  "gpus": [
+    {
+      "name": "NVIDIA T4",
+      "vram_gb": 16,
+      "fp16_tflops": 65,
+      "providers": {
+        "aws": {"instance": "g4dn.xlarge", "hourly_usd": 0.526, "vcpus": 4, "ram_gb": 16},
+        "gcp": {"instance": "n1-standard-4 + T4", "hourly_usd": 0.35, "vcpus": 4, "ram_gb": 15},
+        "azure": {"instance": "NC4as_T4_v3", "hourly_usd": 0.526, "vcpus": 4, "ram_gb": 28},
+        "lambda_labs": {"instance": "gpu_1x_t4", "hourly_usd": 0.33, "vcpus": 4, "ram_gb": 16},
+        "runpod": {"hourly_usd": 0.20, "vcpus": 4, "ram_gb": 16},
+        "vastai": {"hourly_usd": 0.10, "vcpus": 4, "ram_gb": 16, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA L4",
+      "vram_gb": 24,
+      "fp16_tflops": 121,
+      "providers": {
+        "aws": {"instance": "g6.xlarge", "hourly_usd": 0.53, "vcpus": 4, "ram_gb": 16},
+        "gcp": {"instance": "g2-standard-4", "hourly_usd": 0.70, "vcpus": 4, "ram_gb": 16},
+        "runpod": {"hourly_usd": 0.34, "vcpus": 4, "ram_gb": 24},
+        "vastai": {"hourly_usd": 0.20, "vcpus": 4, "ram_gb": 24, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA A10G",
+      "vram_gb": 24,
+      "fp16_tflops": 125,
+      "providers": {
+        "aws": {"instance": "g5.xlarge", "hourly_usd": 1.006, "vcpus": 4, "ram_gb": 16},
+        "gcp": {"instance": "a2-highgpu-1g (A10G equiv)", "hourly_usd": 1.10, "vcpus": 12, "ram_gb": 85},
+        "runpod": {"hourly_usd": 0.39, "vcpus": 4, "ram_gb": 24},
+        "vastai": {"hourly_usd": 0.22, "vcpus": 4, "ram_gb": 24, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA L40S",
+      "vram_gb": 48,
+      "fp16_tflops": 362,
+      "providers": {
+        "aws": {"instance": "g6e.xlarge", "hourly_usd": 1.86, "vcpus": 4, "ram_gb": 32},
+        "lambda_labs": {"instance": "gpu_1x_l40s", "hourly_usd": 0.99, "vcpus": 16, "ram_gb": 64},
+        "runpod": {"hourly_usd": 0.74, "vcpus": 8, "ram_gb": 48},
+        "vastai": {"hourly_usd": 0.45, "vcpus": 8, "ram_gb": 48, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA A100 40GB",
+      "vram_gb": 40,
+      "fp16_tflops": 312,
+      "providers": {
+        "aws": {"instance": "p4d.24xlarge (per GPU)", "hourly_usd": 4.10, "vcpus": 12, "ram_gb": 48},
+        "gcp": {"instance": "a2-highgpu-1g", "hourly_usd": 3.67, "vcpus": 12, "ram_gb": 85},
+        "azure": {"instance": "NC24ads_A100_v4", "hourly_usd": 3.67, "vcpus": 24, "ram_gb": 220},
+        "lambda_labs": {"instance": "gpu_1x_a100", "hourly_usd": 1.10, "vcpus": 14, "ram_gb": 100},
+        "runpod": {"hourly_usd": 0.79, "vcpus": 8, "ram_gb": 48},
+        "vastai": {"hourly_usd": 0.55, "vcpus": 8, "ram_gb": 48, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA A100 80GB",
+      "vram_gb": 80,
+      "fp16_tflops": 312,
+      "providers": {
+        "aws": {"instance": "p4de.24xlarge (per GPU)", "hourly_usd": 5.12, "vcpus": 12, "ram_gb": 64},
+        "gcp": {"instance": "a2-ultragpu-1g", "hourly_usd": 5.07, "vcpus": 12, "ram_gb": 170},
+        "azure": {"instance": "NC48ads_A100_v4", "hourly_usd": 7.35, "vcpus": 48, "ram_gb": 440},
+        "lambda_labs": {"instance": "gpu_1x_a100_sxm", "hourly_usd": 1.29, "vcpus": 14, "ram_gb": 100},
+        "runpod": {"hourly_usd": 1.19, "vcpus": 12, "ram_gb": 80},
+        "vastai": {"hourly_usd": 0.80, "vcpus": 12, "ram_gb": 80, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA H100 80GB",
+      "vram_gb": 80,
+      "fp16_tflops": 990,
+      "providers": {
+        "aws": {"instance": "p5.48xlarge (per GPU)", "hourly_usd": 8.22, "vcpus": 12, "ram_gb": 96},
+        "gcp": {"instance": "a3-highgpu-1g", "hourly_usd": 8.68, "vcpus": 26, "ram_gb": 234},
+        "azure": {"instance": "NC80adis_H100_v5", "hourly_usd": 8.74, "vcpus": 80, "ram_gb": 640},
+        "lambda_labs": {"instance": "gpu_1x_h100_sxm5", "hourly_usd": 2.49, "vcpus": 26, "ram_gb": 200},
+        "runpod": {"hourly_usd": 2.69, "vcpus": 16, "ram_gb": 80},
+        "vastai": {"hourly_usd": 2.00, "vcpus": 16, "ram_gb": 80, "note": "community, variable"}
+      }
+    },
+    {
+      "name": "NVIDIA H200",
+      "vram_gb": 141,
+      "fp16_tflops": 990,
+      "providers": {
+        "lambda_labs": {"instance": "gpu_1x_h200", "hourly_usd": 3.29, "vcpus": 26, "ram_gb": 200},
+        "runpod": {"hourly_usd": 3.49, "vcpus": 16, "ram_gb": 141},
+        "vastai": {"hourly_usd": 2.80, "vcpus": 16, "ram_gb": 141, "note": "community, variable"}
+      }
+    }
+  ],
+  "model_vram_requirements": {
+    "7b_fp16": 14,
+    "7b_int8": 7,
+    "7b_int4": 4,
+    "13b_fp16": 26,
+    "13b_int8": 13,
+    "13b_int4": 7,
+    "34b_fp16": 68,
+    "34b_int8": 34,
+    "34b_int4": 17,
+    "70b_fp16": 140,
+    "70b_int8": 70,
+    "70b_int4": 35,
+    "405b_fp16": 810,
+    "405b_int8": 405,
+    "405b_int4": 203
+  }
+}
