@@ -28,10 +28,10 @@ def _modality_str(model: dict) -> str:
 
 def _load_existing_data() -> dict:
     """Load existing profiles + modality from Qdrant to detect what needs re-enrichment."""
-    from qdrant_client import QdrantClient
+    from src.db.qdrant_manager import get_client
     existing = {}  # id -> {profile, modality_str}
     try:
-        client = QdrantClient(path="./data")
+        client = get_client()  # reuse singleton — avoids double-lock on ./data
         offset = None
         while True:
             results = client.scroll(collection_name="models", limit=100, offset=offset, with_payload=True)
@@ -45,7 +45,6 @@ def _load_existing_data() -> dict:
                     }
             if offset is None:
                 break
-        client.close()
         with_profile = sum(1 for v in existing.values() if v["profile"])
         print(f"  Loaded {len(existing)} existing models ({with_profile} enriched)")
     except Exception as e:

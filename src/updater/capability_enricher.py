@@ -13,6 +13,12 @@ import os
 import time
 import json
 
+
+class _DailyLimitReached(Exception):
+    """Groq daily token quota exhausted — no point retrying until tomorrow."""
+    pass
+
+
 GROQ_MODEL = "llama-3.3-70b-versatile"
 # Groq free tier: 30 RPM, 6000 TPM.
 # Each call uses ~500 tokens (prompt ~300 + output ~200).
@@ -114,8 +120,26 @@ def _merge_enrichment(model: dict, enriched: dict) -> dict:
     return model
 
 
+def _is_daily_limit(err: str) -> bool:
+    """Return True if this 429 is a daily/quota exhaustion (not a per-minute rate limit).
+
+    Daily limit = no point retrying for hours. Stop immediately and resume tomorrow.
+    RPM limit   = wait 60s and retry — will resolve within a minute.
+    """
+    e = err.lower()
+    return (
+        "per day" in e or "tokens per day" in e or "tpd" in e
+        or "per_day" in e or "daily" in e
+        or "requests per day" in e or "rpd" in e
+    )
+
+
 def _generate_groq(client, model_data: dict, retries: int = 4) -> dict | None:
-    """Call Groq API and return parsed JSON enrichment."""
+    """Call Groq API and return parsed JSON enrichment.
+
+    Raises _DailyLimitReached if the daily quota is exhausted — caller must stop
+    the loop, save pending progress, and exit cleanly.
+    """
     prompt = _build_prompt(model_data)
     for attempt in range(retries):
         try:
@@ -134,8 +158,12 @@ def _generate_groq(client, model_data: dict, retries: int = 4) -> dict | None:
         except Exception as e:
             err = str(e)
             if "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower():
+                if _is_daily_limit(err):
+                    # Daily quota gone — raising stops the whole enrichment loop immediately
+                    raise _DailyLimitReached(err[:300])
+                # Per-minute rate limit — wait and retry
                 wait = 60 * (attempt + 1)
-                print(f"  [RATE LIMIT] Waiting {wait}s before retry {attempt+1}/{retries}...")
+                print(f"  [RATE LIMIT] Waiting {wait}s before retry {attempt + 1}/{retries}...")
                 time.sleep(wait)
             else:
                 print(f"  [WARN] Groq failed for '{model_data.get('id')}': {e}")
@@ -214,7 +242,19 @@ def enrich_models(models: list[dict], save_callback=None, save_every: int = 10) 
     pending_save: list[dict] = []
 
     for i, model in enumerate(to_enrich):
-        result = _generate_groq(groq_client, model) if use_groq else _generate_ollama(model)
+        try:
+            result = _generate_groq(groq_client, model) if use_groq else _generate_ollama(model)
+        except _DailyLimitReached as e:
+            # Daily quota exhausted — save whatever we have and stop immediately.
+            # No point continuing: every remaining model would also fail, wasting hours.
+            if save_callback and pending_save:
+                save_callback(pending_save)
+            print(f"\n  [DAILY LIMIT] Groq daily quota reached after {enriched_count} models.")
+            print(f"  {len(pending_save) if pending_save else 0} pending models saved to DB.")
+            print(f"\n  ALL progress is saved. Resume tomorrow with:")
+            print(f"  python -m src.updater.enrich_only")
+            print(f"  (It will skip the {enriched_count} already-enriched models automatically.)\n")
+            return models
 
         if result:
             _merge_enrichment(model, result)

@@ -18,13 +18,13 @@ import requests
 
 GPU_PRICING_PATH = "config/gpu_pricing.json"
 
-# SkyPilot catalog CSV URLs (one per provider)
+# SkyPilot catalog CSV URLs — catalog moved to separate repo: skypilot-org/skypilot-catalog
 _SKYPILOT_URLS = {
-    "aws": "https://raw.githubusercontent.com/skypilot-org/skypilot/master/sky/clouds/catalog/data/aws/vms.csv",
-    "gcp": "https://raw.githubusercontent.com/skypilot-org/skypilot/master/sky/clouds/catalog/data/gcp/vms.csv",
-    "azure": "https://raw.githubusercontent.com/skypilot-org/skypilot/master/sky/clouds/catalog/data/azure/vms.csv",
-    "lambda_labs": "https://raw.githubusercontent.com/skypilot-org/skypilot/master/sky/clouds/catalog/data/lambda/vms.csv",
-    "runpod": "https://raw.githubusercontent.com/skypilot-org/skypilot/master/sky/clouds/catalog/data/runpod/vms.csv",
+    "aws": "https://raw.githubusercontent.com/skypilot-org/skypilot-catalog/main/catalogs/v8/aws/vms.csv",
+    "gcp": "https://raw.githubusercontent.com/skypilot-org/skypilot-catalog/main/catalogs/v8/gcp/vms.csv",
+    "azure": "https://raw.githubusercontent.com/skypilot-org/skypilot-catalog/main/catalogs/v8/azure/vms.csv",
+    "lambda_labs": "https://raw.githubusercontent.com/skypilot-org/skypilot-catalog/main/catalogs/v8/lambda/vms.csv",
+    "runpod": "https://raw.githubusercontent.com/skypilot-org/skypilot-catalog/main/catalogs/v8/runpod/vms.csv",
 }
 
 # Map SkyPilot AcceleratorName → our GPU name in gpu_pricing.json
