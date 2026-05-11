@@ -157,6 +157,11 @@ def _build_filter(filters: dict) -> Filter | None:
     if "provider" in filters:
         conditions.append(FieldCondition(key="provider", match=MatchValue(value=filters["provider"])))
 
+    if "platform" in filters:
+        # Filter models available on a specific platform (e.g., "groq", "openai", "openrouter")
+        platform = filters["platform"]
+        conditions.append(FieldCondition(key="available_platforms", match=MatchAny(any=[platform])))
+
     if not conditions:
         return None
 

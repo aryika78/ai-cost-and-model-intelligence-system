@@ -169,12 +169,18 @@ if user_input or uploaded_file_path:
         with st.chat_message("user"):
             st.markdown(input_text)
 
-    # Check API key
-    if os.getenv("LLM_PROVIDER", "ollama").lower() == "groq" and not os.getenv("GROQ_API_KEY"):
+    # Check API key for configured provider
+    _provider = os.getenv("LLM_PROVIDER", "groq").lower()
+    _missing_key = (
+        (_provider == "groq" and not os.getenv("GROQ_API_KEY")) or
+        (_provider == "cerebras" and not os.getenv("CEREBRAS_API_KEY"))
+    )
+    if _missing_key:
+        _key_url = "https://console.groq.com/keys" if _provider == "groq" else "https://cloud.cerebras.ai"
         st.session_state.messages.append({
             "role": "assistant",
-            "content": "Please set your Groq API key in .env to get started. "
-                       "Get a free key at https://console.groq.com/keys"
+            "content": f"Please set your {_provider.upper()}_API_KEY in .env to get started. "
+                       f"Get a free key at {_key_url}"
         })
         st.rerun()
 
@@ -234,6 +240,26 @@ if user_input or uploaded_file_path:
                         "role": "assistant",
                         "content": response,
                     })
+
+                    # Show confidence breakdown when extraction completes
+                    if new_phase == "analysis" and result.get("requirement_summary"):
+                        summary = result["requirement_summary"]
+                        stated = summary.get("user_stated", [])
+                        inferred = summary.get("inferred", [])
+                        assumed = summary.get("assumed", [])
+                        with st.expander(
+                            f"Requirements breakdown: {len(stated)} stated, "
+                            f"{len(inferred)} inferred, {len(assumed)} assumed"
+                        ):
+                            if stated:
+                                st.markdown(f"**You told us:** {', '.join(stated)}")
+                            if inferred:
+                                st.markdown(f"**We inferred:** {', '.join(inferred)}")
+                            if assumed:
+                                st.markdown(
+                                    f"**We assumed (typical defaults):** {', '.join(assumed)}  \n"
+                                    f"*Correct us if any assumption is wrong.*"
+                                )
 
                     # Show recommended models when available
                     if new_phase in ("cost", "complete") and result.get("recommended_models"):

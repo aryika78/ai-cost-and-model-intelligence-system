@@ -1,7 +1,9 @@
 """LangGraph StateGraph orchestrating Extraction → Analysis → Cost agents."""
 
 import json
+import os
 import re
+import time
 from typing import TypedDict, Annotated
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
@@ -11,10 +13,49 @@ from src.agents.analysis_agent import create_analysis_agent
 from src.agents.cost_agent import create_cost_agent
 
 
+def _reset_agent_cache():
+    """Clear all cached agents so they are recreated with the current LLM_PROVIDER."""
+    global _extraction_agent, _analysis_agent, _cost_agent
+    _extraction_agent = None
+    _analysis_agent = None
+    _cost_agent = None
+
+
+def _invoke_with_fallback(create_fn, messages: list, retries: int = 2) -> dict:
+    """Invoke an agent. On Groq rate limit: wait then retry; if still failing,
+    switch to Cerebras automatically (if CEREBRAS_API_KEY is set).
+    """
+    agent = create_fn()
+    for attempt in range(retries + 1):
+        try:
+            return agent.invoke({"messages": messages})
+        except Exception as e:
+            err = str(e)
+            is_rate_limit = "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower()
+            if not is_rate_limit:
+                raise
+
+            # Last attempt — try Cerebras if available
+            if attempt == retries - 1 and os.getenv("CEREBRAS_API_KEY"):
+                print("  [FALLBACK] Groq rate-limited, switching to Cerebras...")
+                os.environ["LLM_PROVIDER"] = "cerebras"
+                _reset_agent_cache()  # Force fresh agent with new provider
+                agent = create_fn()
+                continue
+
+            if attempt < retries:
+                wait = 30 * (attempt + 1)
+                print(f"  [RATE LIMIT] Waiting {wait}s before retry {attempt + 1}/{retries}...")
+                time.sleep(wait)
+            else:
+                raise
+
+
 class AgentState(TypedDict):
     """Shared state across all agents."""
     messages: list  # Full conversation history
-    requirements: dict  # Extracted requirements
+    requirements: dict  # Extracted requirements (flat key-value)
+    requirement_summary: dict  # Confidence breakdown: {user_stated, inferred, assumed}
     recommended_models: list  # Model IDs from analysis
     cost_report: str  # Final cost report
     phase: str  # "extraction", "analysis", "cost", "complete"
@@ -67,7 +108,7 @@ def extraction_node(state: AgentState) -> dict:
             content=f"The user uploaded a file at: {uploaded}. Please parse it to extract requirements."
         ))
 
-    result = agent.invoke({"messages": messages})
+    result = _invoke_with_fallback(_get_extraction_agent, messages)
     agent_messages = result.get("messages", [])
 
     # Get the last AI message as the response
@@ -79,19 +120,22 @@ def extraction_node(state: AgentState) -> dict:
 
     # Check if requirements were saved (look for save_requirements call results)
     requirements = state.get("requirements", {})
+    requirement_summary = state.get("requirement_summary", {})
+    is_complete = False
+
     for msg in agent_messages:
         if hasattr(msg, "content") and isinstance(msg.content, str):
-            if '"status": "complete"' in msg.content:
+            if '"extraction_complete"' in msg.content:
                 try:
-                    # Extract requirements from the save result
                     parsed = json.loads(msg.content)
                     if parsed.get("requirements"):
                         requirements = parsed["requirements"]
+                    if parsed.get("requirement_summary"):
+                        requirement_summary = parsed["requirement_summary"]
+                    if parsed.get("extraction_complete"):
+                        is_complete = True
                 except (json.JSONDecodeError, KeyError):
                     pass
-
-    # Determine if extraction is complete
-    is_complete = bool(requirements.get("task_type") and requirements.get("use_case"))
 
     new_messages = state.get("messages", [])
     if user_input:
@@ -101,6 +145,7 @@ def extraction_node(state: AgentState) -> dict:
     return {
         "messages": new_messages,
         "requirements": requirements,
+        "requirement_summary": requirement_summary,
         "phase": "analysis" if is_complete else "extraction",
     }
 
@@ -127,7 +172,7 @@ def analysis_node(state: AgentState) -> dict:
                          f"Also suggest 1-2 alternatives if relevant.")
         ]
 
-    result = agent.invoke({"messages": messages})
+    result = _invoke_with_fallback(_get_analysis_agent, messages)
     agent_messages = result.get("messages", [])
 
     # Get the response
@@ -172,7 +217,7 @@ def cost_node(state: AgentState) -> dict:
         f"Show all assumptions explicitly."
     )
 
-    result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
+    result = _invoke_with_fallback(_get_cost_agent, [HumanMessage(content=prompt)])
     agent_messages = result.get("messages", [])
 
     response = ""
@@ -262,6 +307,7 @@ def run_pipeline(user_input: str, current_state: dict | None = None,
         state = AgentState(
             messages=[],
             requirements={},
+            requirement_summary={},
             recommended_models=[],
             cost_report="",
             phase="extraction",

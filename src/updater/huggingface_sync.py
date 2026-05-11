@@ -8,8 +8,10 @@ import urllib.parse
 
 HF_API_URL = "https://huggingface.co/api/models"
 
-# Create a custom SSL context that's more lenient with connections
 _ssl_ctx = ssl.create_default_context()
+
+# Framework tags — factual metadata from HF, not capability inferences
+FRAMEWORK_TAGS = {"pytorch", "transformers", "gguf", "safetensors", "jax", "tensorflow"}
 
 
 def _fetch_url(url: str, max_retries: int = 5) -> bytes:
@@ -27,22 +29,14 @@ def _fetch_url(url: str, max_retries: int = 5) -> bytes:
             else:
                 raise
 
-RELEVANT_PIPELINE_TAGS = [
+
+# Fetch across these pipeline categories to get broad coverage
+HF_PIPELINE_CATEGORIES = [
     "text-generation",
-    "text2text-generation",
-    "text-classification",
-    "token-classification",
-    "question-answering",
-    "summarization",
-    "translation",
     "feature-extraction",
-    "sentence-similarity",
-    "image-text-to-text",
-    "image-classification",
-    "object-detection",
-    "automatic-speech-recognition",
-    "text-to-speech",
     "text-to-image",
+    "automatic-speech-recognition",
+    "image-text-to-text",
 ]
 
 
@@ -51,14 +45,13 @@ def fetch_models(limit: int = 200) -> list[dict]:
     print("Fetching models from HuggingFace...")
 
     all_models = []
-    for tag in ["text-generation", "feature-extraction", "text-to-image",
-                "automatic-speech-recognition", "image-text-to-text"]:
+    for tag in HF_PIPELINE_CATEGORIES:
         try:
             params = urllib.parse.urlencode({
                 "pipeline_tag": tag,
                 "sort": "downloads",
                 "direction": "-1",
-                "limit": limit // 5,
+                "limit": limit // len(HF_PIPELINE_CATEGORIES),
             })
             url = f"{HF_API_URL}?{params}"
             data = _fetch_url(url)
@@ -67,7 +60,6 @@ def fetch_models(limit: int = 200) -> list[dict]:
             print(f"  Fetched {len(models)} models for {tag}")
         except Exception as e:
             print(f"  Error fetching HF models for {tag} (after retries): {e}")
-        # Small delay between categories to avoid connection resets
         time.sleep(1)
 
     print(f"  Found {len(all_models)} models from HuggingFace")
@@ -85,31 +77,31 @@ def fetch_models(limit: int = 200) -> list[dict]:
             continue
 
         pipeline_tag = m.get("pipeline_tag", "")
-        tags = m.get("tags", [])
-        hf_tags = [t for t in tags if t in RELEVANT_PIPELINE_TAGS or t in [
-            "pytorch", "transformers", "gguf", "safetensors"
-        ]]
 
-        # Estimate parameter count from model ID
-        param_count = _estimate_params(model_id)
+        # Only keep factual framework tags — no capability inference from tags
+        framework_tags = [t for t in m.get("tags", []) if t in FRAMEWORK_TAGS]
 
         normalized.append({
             "id": f"hf/{model_id}",
             "name": model_id.split("/")[-1] if "/" in model_id else model_id,
             "description": f"Open-source model on HuggingFace. Pipeline: {pipeline_tag}. "
-                          f"Downloads: {downloads:,}. Likes: {m.get('likes', 0)}.",
-            "context_window": 0,  # Not available from HF API directly
+                           f"Downloads: {downloads:,}. Likes: {m.get('likes', 0)}.",
+            "context_window": 0,
             "input_price_per_mtok": 0,
             "output_price_per_mtok": 0,
-            "type": _pipeline_to_type(pipeline_tag),
-            "category": _pipeline_to_category(pipeline_tag),
-            "tags": hf_tags + [pipeline_tag] if pipeline_tag else hf_tags,
+            # type/category intentionally None — enricher fills via LLM
+            "type": None,
+            "category": None,
+            # open_source is factual for ALL HuggingFace models
             "open_source": True,
+            # pipeline_tag stored raw — enricher uses it as context, no mapping
+            "pipeline_tag": pipeline_tag,
+            "tags": framework_tags,
             "provider": model_id.split("/")[0] if "/" in model_id else "community",
             "source": "huggingface",
             "downloads": downloads,
             "likes": m.get("likes", 0),
-            "parameter_count": param_count,
+            "parameter_count": _estimate_params(model_id),
             "hf_model_id": model_id,
         })
 
@@ -117,45 +109,12 @@ def fetch_models(limit: int = 200) -> list[dict]:
 
 
 def _estimate_params(model_id: str) -> str:
-    """Estimate parameter count from model ID string."""
+    """Read parameter count from model ID string (factual — model names include size)."""
     mid = model_id.lower()
     for marker in ["405b", "400b", "340b", "180b", "140b", "120b",
-                    "72b", "70b", "65b", "34b", "33b", "27b", "22b",
-                    "13b", "14b", "12b", "11b", "9b", "8b", "7b",
-                    "3b", "2b", "1.5b", "1b", "0.5b", "500m", "350m", "125m"]:
+                   "72b", "70b", "65b", "34b", "33b", "27b", "22b",
+                   "13b", "14b", "12b", "11b", "9b", "8b", "7b",
+                   "3b", "2b", "1.5b", "1b", "0.5b", "500m", "350m", "125m"]:
         if marker in mid:
             return marker
     return "unknown"
-
-
-def _pipeline_to_type(tag: str) -> str:
-    mapping = {
-        "text-generation": "chat",
-        "text2text-generation": "chat",
-        "feature-extraction": "embedding",
-        "sentence-similarity": "embedding",
-        "text-to-image": "image_generation",
-        "automatic-speech-recognition": "audio",
-        "text-to-speech": "audio",
-        "image-text-to-text": "chat",
-        "text-classification": "classification",
-        "token-classification": "classification",
-        "question-answering": "chat",
-        "summarization": "chat",
-        "translation": "chat",
-    }
-    return mapping.get(tag, "other")
-
-
-def _pipeline_to_category(tag: str) -> str:
-    mapping = {
-        "text-generation": "general",
-        "text2text-generation": "general",
-        "feature-extraction": "embedding",
-        "sentence-similarity": "embedding",
-        "text-to-image": "image_generation",
-        "automatic-speech-recognition": "speech",
-        "text-to-speech": "speech",
-        "image-text-to-text": "multimodal",
-    }
-    return mapping.get(tag, "specialized")

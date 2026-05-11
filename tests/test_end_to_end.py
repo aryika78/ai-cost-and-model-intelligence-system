@@ -88,28 +88,26 @@ def test_reference_data():
     assert len(gpu_data["gpus"]) >= 8
     print(f"  [PASS] GPU pricing: {len(gpu_data['gpus'])} GPUs loaded")
 
-    with open(os.path.join(config_dir, "platforms.json")) as f:
-        platforms = json.load(f)
-    assert "platforms" in platforms
-    assert len(platforms["platforms"]) >= 10
-    print(f"  [PASS] Platforms: {len(platforms['platforms'])} platforms loaded")
-
 
 def test_tools_extraction():
     """Test extraction tools."""
     from src.tools.extraction_tools import save_requirements
 
-    # Test complete requirements
+    # Test with confidence-tagged format + extraction_complete flag
     reqs = json.dumps({
-        "task_type": "chatbot",
-        "use_case": "Customer support for ecommerce",
-        "volume": "5000 requests/day",
-        "deployment": "cloud_api",
-        "latency": "real-time",
+        "task": {"value": "chatbot", "confidence": "user_stated", "source": "user said chatbot"},
+        "use_case": {"value": "Customer support for ecommerce", "confidence": "user_stated", "source": "user described it"},
+        "volume": {"value": "5000 requests/day", "confidence": "user_stated", "source": "user mentioned 5000"},
+        "deployment": {"value": "cloud_api", "confidence": "assumed", "source": "no constraint mentioned"},
+        "extraction_complete": True,
+        "reasoning": "Have core task and volume, enough to proceed.",
     })
     result = save_requirements.invoke(reqs)
     parsed = json.loads(result)
+    assert parsed["extraction_complete"] is True
     assert parsed["status"] == "complete"
+    assert len(parsed["requirement_summary"]["user_stated"]) == 3
+    assert len(parsed["requirement_summary"]["assumed"]) == 1
     print("  [PASS] Extraction tools work correctly")
 
 
@@ -153,17 +151,17 @@ def test_scenario_chatbot():
 
     from src.tools.extraction_tools import save_requirements
     reqs = {
-        "task_type": "chatbot",
-        "use_case": "Customer support for ecommerce store, Hindi + English",
-        "languages": ["Hindi", "English"],
-        "volume": "5000 chats/day",
-        "latency": "real-time",
-        "accuracy_priority": "high",
-        "deployment": "cloud_api",
-        "privacy": "moderate",
-        "conversation_turns": 5,
+        "task": {"value": "chatbot", "confidence": "user_stated", "source": "user said chatbot"},
+        "use_case": {"value": "Customer support, Hindi + English", "confidence": "user_stated", "source": "user described it"},
+        "volume": {"value": "5000 chats/day", "confidence": "user_stated", "source": "user mentioned 5000"},
+        "languages": {"value": ["Hindi", "English"], "confidence": "user_stated", "source": "user specified"},
+        "latency": {"value": "real-time", "confidence": "inferred", "source": "chatbot implies users waiting"},
+        "deployment": {"value": "cloud_api", "confidence": "assumed", "source": "no constraint mentioned"},
+        "extraction_complete": True,
+        "reasoning": "Have core task, languages, and volume.",
     }
     result = json.loads(save_requirements.invoke(json.dumps(reqs)))
+    assert result["extraction_complete"] is True
     assert result["status"] == "complete"
     print("  [PASS] Requirements extracted and validated")
 

@@ -2,7 +2,6 @@
 
 import json
 import os
-import tempfile
 from langchain_core.tools import tool
 from src.utils.document_parser import parse_document
 
@@ -34,72 +33,91 @@ def parse_uploaded_document(file_path: str) -> str:
 
 @tool
 def save_requirements(requirements: str) -> str:
-    """Validate and save extracted requirements as structured JSON.
+    """Save extracted requirements with confidence tagging.
 
-    The requirements should be a JSON string with these fields:
-    - task_type: What the AI will do (e.g., "chatbot", "code generation", "document analysis")
-    - use_case: Brief description of the use case
-    - languages: List of languages needed (if applicable)
-    - volume: Expected usage volume (requests/day, documents/day, etc.)
-    - latency: Latency requirements ("real-time", "near-real-time", "batch")
-    - accuracy_priority: How important accuracy is ("critical", "high", "moderate", "low")
-    - budget: Budget constraints if any
-    - deployment: Where it will run ("cloud_api", "self_hosted", "local", "any")
-    - privacy: Privacy requirements ("strict", "moderate", "none")
-    - additional_features: List of extra needs (e.g., ["vision", "function_calling", "streaming"])
-    - specific_model: If user already has a specific model in mind
-    - context_length_needs: Estimated context length needed
-    - conversation_turns: Average conversation turns if applicable
+    The requirements should be a JSON object where each extracted field has:
+    {
+      "field_name": {
+        "value": "the actual value",
+        "confidence": "user_stated" | "inferred" | "assumed",
+        "source": "brief explanation of why"
+      },
+      ...,
+      "extraction_complete": true | false,
+      "reasoning": "why extraction is complete or what's still missing"
+    }
+
+    Confidence levels:
+    - user_stated: user explicitly said this
+    - inferred: reasonably deduced from context
+    - assumed: typical default, not mentioned by user
+
+    Use ANY field names that make sense for this request — do not use a fixed template.
 
     Args:
-        requirements: JSON string of extracted requirements
+        requirements: JSON string of confidence-tagged requirements
 
     Returns:
-        Validation result with what's complete and what's missing
+        Validation result with summary of stated/inferred/assumed fields
     """
     try:
-        reqs = json.loads(requirements)
+        data = json.loads(requirements)
     except json.JSONDecodeError as e:
         return f"Error: Invalid JSON - {e}. Please provide valid JSON."
 
-    critical_fields = ["task_type", "use_case"]
-    important_fields = ["volume", "deployment", "latency"]
-    optional_fields = [
-        "languages", "accuracy_priority", "budget", "privacy",
-        "additional_features", "specific_model", "context_length_needs",
-        "conversation_turns",
-    ]
+    extraction_complete = data.pop("extraction_complete", False)
+    reasoning = data.pop("reasoning", "")
 
-    missing_critical = [f for f in critical_fields if not reqs.get(f)]
-    missing_important = [f for f in important_fields if not reqs.get(f)]
-    missing_optional = [f for f in optional_fields if not reqs.get(f)]
+    # Parse each field — support confidence-tagged or plain values
+    flat_reqs = {}
+    stated, inferred, assumed = [], [], []
 
-    present_fields = [f for f in reqs if reqs[f]]
+    for key, val in data.items():
+        if isinstance(val, dict) and "value" in val and "confidence" in val:
+            flat_reqs[key] = val["value"]
+            conf = val.get("confidence", "assumed")
+            if conf == "user_stated":
+                stated.append(key)
+            elif conf == "inferred":
+                inferred.append(key)
+            else:
+                assumed.append(key)
+        else:
+            # Plain value — treat as assumed (no explicit confidence given)
+            flat_reqs[key] = val
+            assumed.append(key)
 
-    result = {
-        "status": "incomplete" if missing_critical else "complete",
-        "requirements": reqs,
-        "present_fields": present_fields,
-        "missing_critical": missing_critical,
-        "missing_important": missing_important,
-        "missing_optional": missing_optional,
+    requirement_summary = {
+        "user_stated": stated,
+        "inferred": inferred,
+        "assumed": assumed,
     }
 
-    if missing_critical:
+    result = {
+        "status": "complete" if extraction_complete else "incomplete",
+        "extraction_complete": extraction_complete,
+        "requirements": flat_reqs,
+        "requirement_summary": requirement_summary,
+        "counts": {
+            "stated": len(stated),
+            "inferred": len(inferred),
+            "assumed": len(assumed),
+        },
+    }
+
+    if reasoning:
+        result["reasoning"] = reasoning
+
+    if extraction_complete:
         result["message"] = (
-            f"Requirements are INCOMPLETE. Missing critical fields: {missing_critical}. "
-            f"Also missing important fields: {missing_important}. "
-            f"Please ask the user about these."
-        )
-    elif missing_important:
-        result["message"] = (
-            f"Requirements have all critical fields. Missing some important fields: {missing_important}. "
-            f"Consider asking about these for better recommendations."
+            f"Requirements captured: {len(stated)} user-stated, "
+            f"{len(inferred)} inferred, {len(assumed)} assumed. "
+            f"Ready for analysis."
         )
     else:
         result["message"] = (
-            f"Requirements are complete with {len(present_fields)} fields filled. "
-            f"Ready for analysis."
+            f"Requirements incomplete ({len(stated)} stated so far). "
+            f"Reason: {reasoning or 'More information needed.'}"
         )
 
     return json.dumps(result, indent=2)

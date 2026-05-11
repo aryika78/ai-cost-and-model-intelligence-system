@@ -271,9 +271,10 @@ def run_cost_tests():
 
         print(f"  Result:\n{result[:500]}")
 
-        # Extract daily cost
+        # Extract daily cost — matches both API ("Daily cost (with overhead): $X")
+        # and self-hosting ("Daily cost: $X") output formats
         import re
-        daily_match = re.search(r"Daily cost:\s*\$([0-9,]+\.?\d*)", result)
+        daily_match = re.search(r"Daily cost[\w\s()]*:\s*\$([0-9,]+\.?\d*)", result)
         daily_cost = None
         if daily_match:
             daily_cost = float(daily_match.group(1).replace(",", ""))
