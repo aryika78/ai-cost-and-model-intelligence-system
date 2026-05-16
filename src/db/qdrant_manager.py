@@ -1,6 +1,8 @@
 """Qdrant vector database manager for model storage and semantic search."""
 
 import hashlib
+import os
+import shutil
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -48,27 +50,41 @@ def _model_id_to_point_id(model_id: str) -> str:
     return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
 
-def _build_embed_text(model_data: dict) -> str:
-    """Build the text to embed from model data fields.
+def wipe_collection():
+    """Delete the entire data directory for a guaranteed clean slate.
 
-    Prefers LLM-generated capability_profile over raw description for
-    much better semantic search relevance.
+    Qdrant local mode's delete_collection() only removes metadata —
+    the underlying SQLite file persists and is reused on create_collection(),
+    leaving old records intact. Deleting the data directory is the only
+    reliable way to start fresh.
     """
-    capability_profile = model_data.get("capability_profile", "")
+    global _client
 
-    if capability_profile:
-        parts = [
-            model_data.get("name", ""),
-            capability_profile,
-            " ".join(model_data.get("tags", [])),
-        ]
+    # Close and discard the singleton — a fresh client will be created after wipe
+    if _client is not None:
+        try:
+            _client.close()
+        except Exception:
+            pass
+        _client = None
+
+    data_path = os.path.abspath(DATA_PATH)
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+        print(f"Wiped data directory: {data_path}")
     else:
-        parts = [
-            model_data.get("name", ""),
-            model_data.get("description", ""),
-            " ".join(model_data.get("tags", [])),
-            model_data.get("category", ""),
-        ]
+        print("No data directory found — nothing to wipe")
+
+
+def _build_embed_text(model_data: dict) -> str:
+    """Build the text to embed for semantic search.
+
+    Uses model name + description. No LLM-generated profiles.
+    """
+    parts = [
+        model_data.get("name", ""),
+        model_data.get("description", ""),
+    ]
     return " ".join(p for p in parts if p)
 
 
@@ -118,28 +134,29 @@ def _build_filter(filters: dict) -> Filter | None:
     """Build Qdrant filter from a dict of field conditions.
 
     Supported filter keys:
-      - type: str (e.g. "chat", "embedding", "image")
-      - category: str
-      - tags: list[str] (match any)
+      - has_vision: bool          — model accepts image input
+      - has_function_calling: bool — model supports tools/function calling
+      - has_reasoning: bool       — model has extended reasoning/thinking mode
+      - has_audio: bool           — model accepts or produces audio
+      - has_image_generation: bool — model produces image output
       - open_source: bool
       - min_context_window: int
       - max_input_price: float (per 1M tokens)
       - provider: str
+      - platform: str             — must be in available_platforms list
     """
     if not filters:
         return None
 
     conditions = []
 
-    if "type" in filters:
-        conditions.append(FieldCondition(key="type", match=MatchValue(value=filters["type"])))
-
-    if "category" in filters:
-        conditions.append(FieldCondition(key="category", match=MatchValue(value=filters["category"])))
-
-    if "tags" in filters:
-        tags = filters["tags"] if isinstance(filters["tags"], list) else [filters["tags"]]
-        conditions.append(FieldCondition(key="tags", match=MatchAny(any=tags)))
+    # Flat capability boolean filters
+    for cap_key in ("has_vision", "has_function_calling", "has_reasoning",
+                    "has_audio", "has_image_generation"):
+        if cap_key in filters:
+            conditions.append(
+                FieldCondition(key=cap_key, match=MatchValue(value=bool(filters[cap_key])))
+            )
 
     if "open_source" in filters:
         conditions.append(FieldCondition(key="open_source", match=MatchValue(value=filters["open_source"])))
@@ -158,9 +175,9 @@ def _build_filter(filters: dict) -> Filter | None:
         conditions.append(FieldCondition(key="provider", match=MatchValue(value=filters["provider"])))
 
     if "platform" in filters:
-        # Filter models available on a specific platform (e.g., "groq", "openai", "openrouter")
-        platform = filters["platform"]
-        conditions.append(FieldCondition(key="available_platforms", match=MatchAny(any=[platform])))
+        conditions.append(
+            FieldCondition(key="available_platforms", match=MatchAny(any=[filters["platform"]]))
+        )
 
     if not conditions:
         return None

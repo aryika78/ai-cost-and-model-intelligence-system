@@ -7,6 +7,7 @@ import os
 import tempfile
 import streamlit as st
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage
 
 load_dotenv()
 
@@ -230,7 +231,7 @@ if user_input or uploaded_file_path:
                 messages = result.get("messages", [])
                 response = ""
                 for msg in reversed(messages):
-                    if hasattr(msg, "content") and hasattr(msg, "type") and msg.type == "ai":
+                    if isinstance(msg, AIMessage) and msg.content:
                         response = msg.content
                         break
 

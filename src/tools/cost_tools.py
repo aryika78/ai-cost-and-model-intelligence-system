@@ -244,10 +244,10 @@ def calculate_self_hosting_cost(params: str) -> str:
     daily_compute = hourly_total * hours
     monthly_compute = daily_compute * 30
 
-    # Storage cost estimate: ~$0.10/GB/month (rough cloud storage average)
-    storage_cost_monthly = storage_gb * 0.10 if storage_gb else 0
+    # Storage cost estimate: ~$0.023/GB/month (AWS S3 standard, us-east-1)
+    storage_cost_monthly = storage_gb * 0.023 if storage_gb else 0
 
-    # Bandwidth/egress: ~$0.09/GB (AWS-ish baseline; providers vary)
+    # Bandwidth/egress: ~$0.09/GB (AWS standard egress, first 10TB/month)
     bandwidth_cost_monthly = bandwidth_gb * 0.09 if bandwidth_gb else 0
 
     total_monthly = monthly_compute + storage_cost_monthly + bandwidth_cost_monthly
@@ -275,9 +275,9 @@ def calculate_self_hosting_cost(params: str) -> str:
         f"- **Daily cost: ${daily_compute:.2f}**",
     ]
     if storage_gb:
-        lines.append(f"- Storage ({storage_gb} GB × $0.10/GB/mo): ${storage_cost_monthly:.2f}")
+        lines.append(f"- Storage ({storage_gb} GB × $0.023/GB/mo, AWS S3 standard): ${storage_cost_monthly:.2f}")
     if bandwidth_gb:
-        lines.append(f"- Bandwidth/egress ({bandwidth_gb} GB × $0.09/GB): ${bandwidth_cost_monthly:.2f}")
+        lines.append(f"- Bandwidth/egress ({bandwidth_gb} GB × $0.09/GB, AWS standard): ${bandwidth_cost_monthly:.2f}")
     lines += [
         f"- **Total monthly: ${total_monthly:.2f}**",
         f"- **Total yearly: ${yearly:.2f}**",
@@ -308,7 +308,7 @@ def calculate_self_hosting_cost(params: str) -> str:
         f"- DevOps overhead for self-hosting: monitoring, deployment, scaling are NOT included in cost above",
         f"- Cold start time: model loading can take 30s–5min depending on model size",
         f"- Idle cost: if running {hours}h/day, paying for idle time between requests",
-        f"- Storage above assumes ~${storage_gb * 0.10:.2f}/mo; adjust with actual model weights size",
+        f"- Storage above assumes ~${storage_gb * 0.023:.2f}/mo (AWS S3 standard $0.023/GB/mo); adjust with actual model weights size",
     ]
 
     return "\n".join(lines)
@@ -328,6 +328,7 @@ def get_gpu_options(model_id: str) -> str:
 
     size_str = model_id.lower()
     vram_needed = None
+    vram_source = "model name"
 
     for size_key, vram in gpu_data["model_vram_requirements"].items():
         size_part = size_key.split("_")[0]
@@ -337,11 +338,20 @@ def get_gpu_options(model_id: str) -> str:
             break
 
     if not vram_needed:
-        vram_needed = 16  # conservative default for unknown models
+        # Try DB lookup for param_count
+        model = qdrant_manager.get_model(model_id)
+        param_count = model.get("param_count") if model else None
+        if param_count:
+            # Approximate VRAM at INT4: ~0.6 bytes/param → param_count (billions) * 0.6 GB, minimum 4GB
+            vram_needed = max(4, round(param_count * 0.6))
+            vram_source = f"inferred from {param_count}B parameters in database"
+        else:
+            vram_needed = 16
+            vram_source = "default estimate (model size not found in name or database)"
 
     lines = [
         f"## GPU Options for Model: {model_id}",
-        f"Estimated VRAM needed: ~{vram_needed} GB (INT4 quantization)\n",
+        f"Estimated VRAM needed: ~{vram_needed} GB (INT4 quantization) — {vram_source}\n",
         f"On-demand = reliable, any time. Spot = interruptible (~70% cheaper, 2-min notice).\n",
     ]
 

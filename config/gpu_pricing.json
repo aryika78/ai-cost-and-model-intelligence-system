@@ -5,12 +5,47 @@
       "vram_gb": 16,
       "fp16_tflops": 65,
       "providers": {
-        "aws": {"instance": "g4dn.xlarge", "on_demand_usd": 0.526, "spot_usd": null, "vcpus": 4, "ram_gb": 16},
-        "gcp": {"instance": "n1-standard-4 + T4", "on_demand_usd": 0.35, "spot_usd": null, "vcpus": 4, "ram_gb": 15},
-        "azure": {"instance": "NC4as_T4_v3", "on_demand_usd": 0.526, "spot_usd": null, "vcpus": 4, "ram_gb": 28},
-        "lambda_labs": {"instance": "gpu_1x_t4", "on_demand_usd": 0.33, "spot_usd": null, "vcpus": 4, "ram_gb": 16},
-        "runpod": {"on_demand_usd": 0.20, "spot_usd": null, "vcpus": 4, "ram_gb": 16},
-        "vastai": {"on_demand_usd": 0.10, "spot_usd": null, "vcpus": 4, "ram_gb": 16, "note": "community, variable"}
+        "aws": {
+          "instance": "g4dn.xlarge",
+          "on_demand_usd": 0.526,
+          "spot_usd": 0.0669,
+          "vcpus": 4,
+          "ram_gb": 16
+        },
+        "gcp": {
+          "instance": "n1-standard-4 + T4",
+          "on_demand_usd": 0.35,
+          "spot_usd": 0.1071,
+          "vcpus": 4,
+          "ram_gb": 15
+        },
+        "azure": {
+          "instance": "Standard_NC4as_T4_v3",
+          "on_demand_usd": 0.526,
+          "spot_usd": 0.0579,
+          "vcpus": 4,
+          "ram_gb": 28
+        },
+        "lambda_labs": {
+          "instance": "gpu_1x_t4",
+          "on_demand_usd": 0.33,
+          "spot_usd": null,
+          "vcpus": 4,
+          "ram_gb": 16
+        },
+        "runpod": {
+          "on_demand_usd": 0.2,
+          "spot_usd": null,
+          "vcpus": 4,
+          "ram_gb": 16
+        },
+        "vastai": {
+          "on_demand_usd": 0.1,
+          "spot_usd": null,
+          "vcpus": 4,
+          "ram_gb": 16,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -18,10 +53,34 @@
       "vram_gb": 24,
       "fp16_tflops": 121,
       "providers": {
-        "aws": {"instance": "g6.xlarge", "on_demand_usd": 0.53, "spot_usd": null, "vcpus": 4, "ram_gb": 16},
-        "gcp": {"instance": "g2-standard-4", "on_demand_usd": 0.70, "spot_usd": null, "vcpus": 4, "ram_gb": 16},
-        "runpod": {"on_demand_usd": 0.34, "spot_usd": null, "vcpus": 4, "ram_gb": 24},
-        "vastai": {"on_demand_usd": 0.20, "spot_usd": null, "vcpus": 4, "ram_gb": 24, "note": "community, variable"}
+        "aws": {
+          "instance": "g6.xlarge",
+          "on_demand_usd": 0.8048,
+          "spot_usd": 0.1144,
+          "vcpus": 4,
+          "ram_gb": 16
+        },
+        "gcp": {
+          "instance": "g2-standard-4",
+          "on_demand_usd": 0.5582,
+          "spot_usd": 0.1633,
+          "vcpus": 4,
+          "ram_gb": 16
+        },
+        "runpod": {
+          "on_demand_usd": 0.39,
+          "spot_usd": 0.39,
+          "vcpus": 4,
+          "ram_gb": 24,
+          "instance": "1x_L4_SECURE"
+        },
+        "vastai": {
+          "on_demand_usd": 0.2,
+          "spot_usd": null,
+          "vcpus": 4,
+          "ram_gb": 24,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -29,10 +88,33 @@
       "vram_gb": 24,
       "fp16_tflops": 125,
       "providers": {
-        "aws": {"instance": "g5.xlarge", "on_demand_usd": 1.006, "spot_usd": null, "vcpus": 4, "ram_gb": 16},
-        "gcp": {"instance": "a2-highgpu-1g (A10G equiv)", "on_demand_usd": 1.10, "spot_usd": null, "vcpus": 12, "ram_gb": 85},
-        "runpod": {"on_demand_usd": 0.39, "spot_usd": null, "vcpus": 4, "ram_gb": 24},
-        "vastai": {"on_demand_usd": 0.22, "spot_usd": null, "vcpus": 4, "ram_gb": 24, "note": "community, variable"}
+        "aws": {
+          "instance": "g5.xlarge",
+          "on_demand_usd": 1.006,
+          "spot_usd": 0.2114,
+          "vcpus": 4,
+          "ram_gb": 16
+        },
+        "gcp": {
+          "instance": "a2-highgpu-1g (A10G equiv)",
+          "on_demand_usd": 1.1,
+          "spot_usd": null,
+          "vcpus": 12,
+          "ram_gb": 85
+        },
+        "runpod": {
+          "on_demand_usd": 0.39,
+          "spot_usd": null,
+          "vcpus": 4,
+          "ram_gb": 24
+        },
+        "vastai": {
+          "on_demand_usd": 0.22,
+          "spot_usd": null,
+          "vcpus": 4,
+          "ram_gb": 24,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -40,10 +122,34 @@
       "vram_gb": 48,
       "fp16_tflops": 362,
       "providers": {
-        "aws": {"instance": "g6e.xlarge", "on_demand_usd": 1.86, "spot_usd": null, "vcpus": 4, "ram_gb": 32},
-        "lambda_labs": {"instance": "gpu_1x_l40s", "on_demand_usd": 0.99, "spot_usd": null, "vcpus": 16, "ram_gb": 64},
-        "runpod": {"on_demand_usd": 0.74, "spot_usd": null, "vcpus": 8, "ram_gb": 48},
-        "vastai": {"on_demand_usd": 0.45, "spot_usd": null, "vcpus": 8, "ram_gb": 48, "note": "community, variable"}
+        "aws": {
+          "instance": "g6e.xlarge",
+          "on_demand_usd": 1.861,
+          "spot_usd": 0.3623,
+          "vcpus": 4,
+          "ram_gb": 32
+        },
+        "lambda_labs": {
+          "instance": "gpu_1x_l40s",
+          "on_demand_usd": 0.99,
+          "spot_usd": null,
+          "vcpus": 16,
+          "ram_gb": 64
+        },
+        "runpod": {
+          "on_demand_usd": 0.86,
+          "spot_usd": 0.86,
+          "vcpus": 8,
+          "ram_gb": 48,
+          "instance": "1x_L40S_SECURE"
+        },
+        "vastai": {
+          "on_demand_usd": 0.45,
+          "spot_usd": null,
+          "vcpus": 8,
+          "ram_gb": 48,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -51,12 +157,47 @@
       "vram_gb": 40,
       "fp16_tflops": 312,
       "providers": {
-        "aws": {"instance": "p4d.24xlarge (per GPU)", "on_demand_usd": 4.10, "spot_usd": null, "vcpus": 12, "ram_gb": 48},
-        "gcp": {"instance": "a2-highgpu-1g", "on_demand_usd": 3.67, "spot_usd": null, "vcpus": 12, "ram_gb": 85},
-        "azure": {"instance": "NC24ads_A100_v4", "on_demand_usd": 3.67, "spot_usd": null, "vcpus": 24, "ram_gb": 220},
-        "lambda_labs": {"instance": "gpu_1x_a100", "on_demand_usd": 1.10, "spot_usd": null, "vcpus": 14, "ram_gb": 100},
-        "runpod": {"on_demand_usd": 0.79, "spot_usd": null, "vcpus": 8, "ram_gb": 48},
-        "vastai": {"on_demand_usd": 0.55, "spot_usd": null, "vcpus": 8, "ram_gb": 48, "note": "community, variable"}
+        "aws": {
+          "instance": "p4d.24xlarge (per GPU)",
+          "on_demand_usd": 4.1,
+          "spot_usd": null,
+          "vcpus": 12,
+          "ram_gb": 48
+        },
+        "gcp": {
+          "instance": "a2-highgpu-1g",
+          "on_demand_usd": 1.6137,
+          "spot_usd": 1.2276,
+          "vcpus": 12,
+          "ram_gb": 85
+        },
+        "azure": {
+          "instance": "NC24ads_A100_v4",
+          "on_demand_usd": 3.67,
+          "spot_usd": null,
+          "vcpus": 24,
+          "ram_gb": 220
+        },
+        "lambda_labs": {
+          "instance": "gpu_1x_a100_sxm4",
+          "on_demand_usd": 1.99,
+          "spot_usd": null,
+          "vcpus": 14,
+          "ram_gb": 100
+        },
+        "runpod": {
+          "on_demand_usd": 0.79,
+          "spot_usd": null,
+          "vcpus": 8,
+          "ram_gb": 48
+        },
+        "vastai": {
+          "on_demand_usd": 0.55,
+          "spot_usd": null,
+          "vcpus": 8,
+          "ram_gb": 48,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -64,12 +205,48 @@
       "vram_gb": 80,
       "fp16_tflops": 312,
       "providers": {
-        "aws": {"instance": "p4de.24xlarge (per GPU)", "on_demand_usd": 5.12, "spot_usd": null, "vcpus": 12, "ram_gb": 64},
-        "gcp": {"instance": "a2-ultragpu-1g", "on_demand_usd": 5.07, "spot_usd": null, "vcpus": 12, "ram_gb": 170},
-        "azure": {"instance": "NC48ads_A100_v4", "on_demand_usd": 7.35, "spot_usd": null, "vcpus": 48, "ram_gb": 440},
-        "lambda_labs": {"instance": "gpu_1x_a100_sxm", "on_demand_usd": 1.29, "spot_usd": null, "vcpus": 14, "ram_gb": 100},
-        "runpod": {"on_demand_usd": 1.19, "spot_usd": null, "vcpus": 12, "ram_gb": 80},
-        "vastai": {"on_demand_usd": 0.80, "spot_usd": null, "vcpus": 12, "ram_gb": 80, "note": "community, variable"}
+        "aws": {
+          "instance": "p4de.24xlarge (per GPU)",
+          "on_demand_usd": 5.12,
+          "spot_usd": null,
+          "vcpus": 12,
+          "ram_gb": 64
+        },
+        "gcp": {
+          "instance": "a2-ultragpu-1g",
+          "on_demand_usd": 1.8462,
+          "spot_usd": 1.329,
+          "vcpus": 12,
+          "ram_gb": 170
+        },
+        "azure": {
+          "instance": "Standard_NC24ads_A100_v4",
+          "on_demand_usd": 3.673,
+          "spot_usd": 0.404,
+          "vcpus": 48,
+          "ram_gb": 440
+        },
+        "lambda_labs": {
+          "instance": "gpu_1x_a100_sxm",
+          "on_demand_usd": 1.29,
+          "spot_usd": null,
+          "vcpus": 14,
+          "ram_gb": 100
+        },
+        "runpod": {
+          "on_demand_usd": 1.39,
+          "spot_usd": 1.39,
+          "vcpus": 12,
+          "ram_gb": 80,
+          "instance": "1x_A100-80GB_SECURE"
+        },
+        "vastai": {
+          "on_demand_usd": 0.8,
+          "spot_usd": null,
+          "vcpus": 12,
+          "ram_gb": 80,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -77,12 +254,48 @@
       "vram_gb": 80,
       "fp16_tflops": 990,
       "providers": {
-        "aws": {"instance": "p5.48xlarge (per GPU)", "on_demand_usd": 8.22, "spot_usd": null, "vcpus": 12, "ram_gb": 96},
-        "gcp": {"instance": "a3-highgpu-1g", "on_demand_usd": 8.68, "spot_usd": null, "vcpus": 26, "ram_gb": 234},
-        "azure": {"instance": "NC80adis_H100_v5", "on_demand_usd": 8.74, "spot_usd": null, "vcpus": 80, "ram_gb": 640},
-        "lambda_labs": {"instance": "gpu_1x_h100_sxm5", "on_demand_usd": 2.49, "spot_usd": null, "vcpus": 26, "ram_gb": 200},
-        "runpod": {"on_demand_usd": 2.69, "spot_usd": null, "vcpus": 16, "ram_gb": 80},
-        "vastai": {"on_demand_usd": 2.00, "spot_usd": null, "vcpus": 16, "ram_gb": 80, "note": "community, variable"}
+        "aws": {
+          "instance": "p5.4xlarge",
+          "on_demand_usd": 6.88,
+          "spot_usd": 2.1102,
+          "vcpus": 12,
+          "ram_gb": 96
+        },
+        "gcp": {
+          "instance": "a3-highgpu-1g",
+          "on_demand_usd": 4.2008,
+          "spot_usd": 0.9799,
+          "vcpus": 26,
+          "ram_gb": 234
+        },
+        "azure": {
+          "instance": "Standard_NC40ads_H100_v5",
+          "on_demand_usd": 6.98,
+          "spot_usd": 6.98,
+          "vcpus": 80,
+          "ram_gb": 640
+        },
+        "lambda_labs": {
+          "instance": "gpu_1x_h100_pcie",
+          "on_demand_usd": 3.29,
+          "spot_usd": null,
+          "vcpus": 26,
+          "ram_gb": 200
+        },
+        "runpod": {
+          "on_demand_usd": 2.39,
+          "spot_usd": 2.39,
+          "vcpus": 16,
+          "ram_gb": 80,
+          "instance": "1x_H100_SECURE"
+        },
+        "vastai": {
+          "on_demand_usd": 2.0,
+          "spot_usd": null,
+          "vcpus": 16,
+          "ram_gb": 80,
+          "note": "community, variable"
+        }
       }
     },
     {
@@ -90,9 +303,27 @@
       "vram_gb": 141,
       "fp16_tflops": 990,
       "providers": {
-        "lambda_labs": {"instance": "gpu_1x_h200", "on_demand_usd": 3.29, "spot_usd": null, "vcpus": 26, "ram_gb": 200},
-        "runpod": {"on_demand_usd": 3.49, "spot_usd": null, "vcpus": 16, "ram_gb": 141},
-        "vastai": {"on_demand_usd": 2.80, "spot_usd": null, "vcpus": 16, "ram_gb": 141, "note": "community, variable"}
+        "lambda_labs": {
+          "instance": "gpu_1x_h200",
+          "on_demand_usd": 3.29,
+          "spot_usd": null,
+          "vcpus": 26,
+          "ram_gb": 200
+        },
+        "runpod": {
+          "on_demand_usd": 3.99,
+          "spot_usd": 3.99,
+          "vcpus": 16,
+          "ram_gb": 141,
+          "instance": "1x_H200-SXM_SECURE"
+        },
+        "vastai": {
+          "on_demand_usd": 2.8,
+          "spot_usd": null,
+          "vcpus": 16,
+          "ram_gb": 141,
+          "note": "community, variable"
+        }
       }
     }
   ],
