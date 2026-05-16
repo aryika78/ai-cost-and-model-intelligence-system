@@ -2,10 +2,9 @@
 
 import json
 import os
-import re
 import time
 from typing import TypedDict, Annotated
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langgraph.graph import StateGraph, END
 
 from src.agents.extraction_agent import create_extraction_agent
@@ -21,34 +20,91 @@ def _reset_agent_cache():
     _cost_agent = None
 
 
+# Ordered fallback chain — tried in sequence when a provider rate-limits or errors.
+# Each entry: (provider_name, required_env_var)
+_FALLBACK_CHAIN = [
+    ("mistral",      "MISTRAL_API_KEY"),
+    ("openrouter",   "OPENROUTER_API_KEY"),
+    ("groq",         "GROQ_API_KEY"),
+    ("cerebras",     "CEREBRAS_API_KEY"),
+    ("gemini",       "GEMINI_API_KEY"),
+]
+
+
+def _next_available_provider(current: str) -> str | None:
+    """Return the next provider in the fallback chain that has a key set."""
+    found_current = False
+    for name, env_var in _FALLBACK_CHAIN:
+        if name == current:
+            found_current = True
+            continue
+        if found_current and os.getenv(env_var):
+            return name
+    return None
+
+
 def _invoke_with_fallback(create_fn, messages: list, retries: int = 2) -> dict:
-    """Invoke an agent. On Groq rate limit: wait then retry; if still failing,
-    switch to Cerebras automatically (if CEREBRAS_API_KEY is set).
+    """Invoke an agent with automatic provider fallback on rate limits.
+
+    On rate limit / queue overflow: waits 15s then retries once, then
+    automatically switches to the next available provider in _FALLBACK_CHAIN.
+    Cycles through all available providers before giving up.
     """
-    agent = create_fn()
-    for attempt in range(retries + 1):
-        try:
-            return agent.invoke({"messages": messages})
-        except Exception as e:
-            err = str(e)
-            is_rate_limit = "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower()
-            if not is_rate_limit:
-                raise
+    tried_providers = set()
 
-            # Last attempt — try Cerebras if available
-            if attempt == retries - 1 and os.getenv("CEREBRAS_API_KEY"):
-                print("  [FALLBACK] Groq rate-limited, switching to Cerebras...")
-                os.environ["LLM_PROVIDER"] = "cerebras"
-                _reset_agent_cache()  # Force fresh agent with new provider
-                agent = create_fn()
-                continue
+    while True:
+        current_provider = os.getenv("LLM_PROVIDER", "mistral").lower()
+        tried_providers.add(current_provider)
+        agent = create_fn()
 
-            if attempt < retries:
-                wait = 30 * (attempt + 1)
-                print(f"  [RATE LIMIT] Waiting {wait}s before retry {attempt + 1}/{retries}...")
-                time.sleep(wait)
-            else:
-                raise
+        for attempt in range(retries + 1):
+            try:
+                return agent.invoke({"messages": messages})
+            except Exception as e:
+                err = str(e)
+                is_rate_limit = (
+                    "429" in err
+                    or "rate_limit" in err.lower()
+                    or "rate limit" in err.lower()
+                    or "queue" in err.lower()
+                    or "too_many_requests" in err.lower()
+                )
+                is_connection = (
+                    "connection" in err.lower()
+                    or "getaddrinfo" in err.lower()
+                    or "connecterror" in err.lower()
+                )
+
+                if not is_rate_limit and not is_connection:
+                    raise  # Non-rate-limit error — don't retry with different provider
+
+                if attempt < retries:
+                    wait = 15 * (attempt + 1)
+                    print(f"  [RATE LIMIT] {current_provider} — waiting {wait}s (retry {attempt + 1}/{retries})...")
+                    time.sleep(wait)
+                else:
+                    # Exhausted retries on this provider — try next
+                    next_provider = _next_available_provider(current_provider)
+
+                    # Skip already-tried providers
+                    while next_provider and next_provider in tried_providers:
+                        os.environ["LLM_PROVIDER"] = next_provider
+                        next_provider = _next_available_provider(next_provider)
+
+                    if next_provider:
+                        print(f"  [FALLBACK] {current_provider} exhausted → switching to {next_provider}...")
+                        os.environ["LLM_PROVIDER"] = next_provider
+                        _reset_agent_cache()
+                        break  # Break retry loop, outer while will re-invoke with new provider
+                    else:
+                        raise RuntimeError(
+                            f"All providers exhausted ({', '.join(tried_providers)}). "
+                            f"Last error: {err}"
+                        )
+        else:
+            continue  # retries loop finished normally — shouldn't happen
+        # Broke out of retry loop (switching provider) — continue outer while
+        continue
 
 
 class AgentState(TypedDict):
@@ -61,6 +117,7 @@ class AgentState(TypedDict):
     phase: str  # "extraction", "analysis", "cost", "complete"
     user_input: str  # Latest user input
     uploaded_file: str  # Path to uploaded file, if any
+    rerun_analysis: bool  # Whether model selection needs re-evaluation on follow-up
 
 
 # Create agents (lazy initialization)
@@ -122,20 +179,22 @@ def extraction_node(state: AgentState) -> dict:
     requirements = state.get("requirements", {})
     requirement_summary = state.get("requirement_summary", {})
     is_complete = False
+    rerun_analysis = True  # Default: re-run analysis on follow-ups
 
     for msg in agent_messages:
-        if hasattr(msg, "content") and isinstance(msg.content, str):
-            if '"extraction_complete"' in msg.content:
-                try:
-                    parsed = json.loads(msg.content)
-                    if parsed.get("requirements"):
-                        requirements = parsed["requirements"]
-                    if parsed.get("requirement_summary"):
-                        requirement_summary = parsed["requirement_summary"]
-                    if parsed.get("extraction_complete"):
-                        is_complete = True
-                except (json.JSONDecodeError, KeyError):
-                    pass
+        if isinstance(msg, ToolMessage) and getattr(msg, "name", "") == "save_requirements":
+            try:
+                parsed = json.loads(msg.content)
+                if parsed.get("requirements"):
+                    requirements = parsed["requirements"]
+                if parsed.get("requirement_summary"):
+                    requirement_summary = parsed["requirement_summary"]
+                if parsed.get("extraction_complete"):
+                    is_complete = True
+                if "rerun_analysis" in parsed:
+                    rerun_analysis = parsed["rerun_analysis"]
+            except (json.JSONDecodeError, KeyError):
+                pass
 
     new_messages = state.get("messages", [])
     if user_input:
@@ -146,6 +205,7 @@ def extraction_node(state: AgentState) -> dict:
         "messages": new_messages,
         "requirements": requirements,
         "requirement_summary": requirement_summary,
+        "rerun_analysis": rerun_analysis,
         "phase": "analysis" if is_complete else "extraction",
     }
 
@@ -157,40 +217,32 @@ def analysis_node(state: AgentState) -> dict:
     requirements = state.get("requirements", {})
     req_str = json.dumps(requirements, indent=2)
 
-    messages = [
-        HumanMessage(content=f"Here are the user's requirements:\n\n{req_str}\n\n"
-                     f"Please find and recommend the best AI models for these requirements.")
-    ]
+    # Include full conversation history so agent understands context and any follow-up changes
+    history = list(state.get("messages", []))
+    history.append(HumanMessage(content=f"Here are the extracted requirements:\n\n{req_str}\n\n"
+                     f"Please analyze these and recommend the best AI models."))
 
-    # If a specific model was requested (Mode A)
-    specific_model = requirements.get("specific_model")
-    if specific_model:
-        messages = [
-            HumanMessage(content=f"The user specifically wants to use model: {specific_model}\n\n"
-                         f"Full requirements:\n{req_str}\n\n"
-                         f"Please look up this model and provide details. "
-                         f"Also suggest 1-2 alternatives if relevant.")
-        ]
-
-    result = _invoke_with_fallback(_get_analysis_agent, messages)
+    result = _invoke_with_fallback(_get_analysis_agent, history)
     agent_messages = result.get("messages", [])
 
-    # Get the response
+    # Get the response (last AI text message)
     response = ""
     for msg in reversed(agent_messages):
         if isinstance(msg, AIMessage) and msg.content:
             response = msg.content
             break
 
-    # Extract recommended model IDs from response
+    # Extract recommended model IDs from save_recommendations tool call result
     recommended = []
-    # Look for "RECOMMENDED MODELS: [...]" pattern
-    match = re.search(r'RECOMMENDED MODELS:\s*\[([^\]]+)\]', response)
-    if match:
-        ids_str = match.group(1)
-        recommended = [mid.strip().strip('"\'') for mid in ids_str.split(",")]
-    elif specific_model:
-        recommended = [specific_model]
+    for msg in agent_messages:
+        if isinstance(msg, ToolMessage) and getattr(msg, "name", "") == "save_recommendations":
+            try:
+                parsed = json.loads(msg.content)
+                if parsed.get("recommended_models"):
+                    recommended = parsed["recommended_models"]
+                    break
+            except (json.JSONDecodeError, KeyError):
+                pass
 
     new_messages = state.get("messages", []) + [AIMessage(content=response)]
 
@@ -217,7 +269,11 @@ def cost_node(state: AgentState) -> dict:
         f"Show all assumptions explicitly."
     )
 
-    result = _invoke_with_fallback(_get_cost_agent, [HumanMessage(content=prompt)])
+    # Include full conversation history so agent understands context and any follow-up changes
+    history = list(state.get("messages", []))
+    history.append(HumanMessage(content=prompt))
+
+    result = _invoke_with_fallback(_get_cost_agent, history)
     agent_messages = result.get("messages", [])
 
     response = ""
@@ -236,20 +292,37 @@ def cost_node(state: AgentState) -> dict:
 
 
 def route_after_extraction(state: AgentState) -> str:
-    """Route: if extraction complete, go to analysis; otherwise loop back."""
+    """Route: if extraction complete, go to analysis or cost depending on rerun_analysis flag."""
     if state.get("phase") == "analysis":
-        return "analysis"
+        if state.get("rerun_analysis", True):
+            return "analysis"
+        else:
+            return "cost"  # Skip analysis — existing recommendations still valid
     return "wait_for_input"
 
 
 def route_after_analysis(state: AgentState) -> str:
-    """Route: after analysis, always go to cost."""
-    return "cost"
+    """Route: go to cost only if analysis identified specific models.
+    If recommended_models is empty, stop here — the analysis response already
+    explains why (no matching models, conflicting constraints, etc.).
+    Running cost with an empty list causes hallucination.
+    """
+    if state.get("recommended_models"):
+        return "cost"
+    return "no_models_found"
 
 
 def wait_for_input_node(state: AgentState) -> dict:
     """Placeholder node that signals we need more user input."""
     return {"phase": "extraction"}
+
+
+def no_models_found_node(state: AgentState) -> dict:
+    """Analysis completed but no specific models were identified.
+    The analysis agent's written response already explains why.
+    Mark as complete so the UI shows that response as the final output.
+    """
+    return {"phase": "complete", "cost_report": ""}
 
 
 def build_graph() -> StateGraph:
@@ -260,6 +333,7 @@ def build_graph() -> StateGraph:
     graph.add_node("extraction", extraction_node)
     graph.add_node("wait_for_input", wait_for_input_node)
     graph.add_node("analysis", analysis_node)
+    graph.add_node("no_models_found", no_models_found_node)
     graph.add_node("cost", cost_node)
 
     # Set entry point
@@ -269,10 +343,15 @@ def build_graph() -> StateGraph:
     graph.add_conditional_edges(
         "extraction",
         route_after_extraction,
-        {"analysis": "analysis", "wait_for_input": "wait_for_input"},
+        {"analysis": "analysis", "cost": "cost", "wait_for_input": "wait_for_input"},
     )
     graph.add_edge("wait_for_input", END)  # Returns to user for more input
-    graph.add_edge("analysis", "cost")
+    graph.add_conditional_edges(
+        "analysis",
+        route_after_analysis,
+        {"cost": "cost", "no_models_found": "no_models_found"},
+    )
+    graph.add_edge("no_models_found", END)
     graph.add_edge("cost", END)
 
     return graph.compile()
@@ -318,8 +397,8 @@ def run_pipeline(user_input: str, current_state: dict | None = None,
         state = dict(current_state)
         state["user_input"] = user_input
         state["uploaded_file"] = uploaded_file
-        # If we were waiting, re-enter extraction
-        if state.get("phase") in ("extraction", "wait_for_input"):
+        # Re-enter extraction for any follow-up (waiting, or post-completion)
+        if state.get("phase") in ("extraction", "wait_for_input", "complete"):
             state["phase"] = "extraction"
 
     result = graph.invoke(state)
