@@ -94,14 +94,15 @@ def test_tools_extraction():
     from src.tools.extraction_tools import save_requirements
 
     # Test with confidence-tagged format + extraction_complete flag
-    reqs = json.dumps({
+    # Note: invoke() with dict (not JSON string) — matches how LLM calls the tool
+    reqs = {
         "task": {"value": "chatbot", "confidence": "user_stated", "source": "user said chatbot"},
         "use_case": {"value": "Customer support for ecommerce", "confidence": "user_stated", "source": "user described it"},
         "volume": {"value": "5000 requests/day", "confidence": "user_stated", "source": "user mentioned 5000"},
         "deployment": {"value": "cloud_api", "confidence": "assumed", "source": "no constraint mentioned"},
         "extraction_complete": True,
         "reasoning": "Have core task and volume, enough to proceed.",
-    })
+    }
     result = save_requirements.invoke(reqs)
     parsed = json.loads(result)
     assert parsed["extraction_complete"] is True
@@ -160,7 +161,7 @@ def test_scenario_chatbot():
         "extraction_complete": True,
         "reasoning": "Have core task, languages, and volume.",
     }
-    result = json.loads(save_requirements.invoke(json.dumps(reqs)))
+    result = json.loads(save_requirements.invoke(reqs))
     assert result["extraction_complete"] is True
     assert result["status"] == "complete"
     print("  [PASS] Requirements extracted and validated")
@@ -171,7 +172,7 @@ def test_scenario_chatbot():
         from src.tools.analysis_tools import search_models
         search_result = search_models.invoke({
             "query": "multilingual customer support chatbot Hindi English fast",
-            "filters": json.dumps({"type": "chat"}),
+            "filters": json.dumps({"has_function_calling": True}),
         })
         print(f"  [PASS] Model search returned results")
     else:

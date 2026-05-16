@@ -108,13 +108,17 @@ def fetch_models(limit: int = 200) -> list[dict]:
     return normalized
 
 
-def _estimate_params(model_id: str) -> str:
-    """Read parameter count from model ID string (factual — model names include size)."""
+def _estimate_params(model_id: str) -> float | None:
+    """Extract parameter count in billions from model ID string.
+
+    Returns a float (e.g. 7.0, 70.0, 0.5) or None if not found.
+    Works for any size — 3b, 8b, 14b, 30b, 72b, 235b, 500m, etc.
+    """
+    import re
     mid = model_id.lower()
-    for marker in ["405b", "400b", "340b", "180b", "140b", "120b",
-                   "72b", "70b", "65b", "34b", "33b", "27b", "22b",
-                   "13b", "14b", "12b", "11b", "9b", "8b", "7b",
-                   "3b", "2b", "1.5b", "1b", "0.5b", "500m", "350m", "125m"]:
-        if marker in mid:
-            return marker
-    return "unknown"
+    match = re.search(r'(\d+\.?\d*)(b|m)(?:\b|-)', mid)
+    if match:
+        num = float(match.group(1))
+        unit = match.group(2)
+        return num if unit == "b" else round(num / 1000, 3)
+    return None
